@@ -1,0 +1,61 @@
+package com.example.gymtracker.data.db
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface WorkoutDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(session: WorkoutSession): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExerciseSets(sets: List<ExerciseSet>)
+
+    @Update
+    suspend fun updateSession(session: WorkoutSession)
+
+    @Update
+    suspend fun updateExerciseSet(set: ExerciseSet)
+
+    @Query("SELECT * FROM workout_sessions WHERE dayNumber = :dayNumber AND weekNumber = :weekNumber AND blockNumber = :blockNumber ORDER BY isCompleted DESC, id DESC LIMIT 1")
+    suspend fun getSession(dayNumber: Int, weekNumber: Int, blockNumber: Int): WorkoutSession?
+
+    @Query("SELECT * FROM workout_sessions ORDER BY blockNumber DESC, weekNumber DESC, dayNumber DESC")
+    fun getAllSessions(): Flow<List<WorkoutSession>>
+
+    @Query("SELECT * FROM workout_sessions WHERE id = :sessionId")
+    suspend fun getSessionById(sessionId: Long): WorkoutSession?
+
+    @Query("SELECT * FROM exercise_sets WHERE sessionId = :sessionId ORDER BY exerciseId, setNumber")
+    suspend fun getExerciseSetsForSession(sessionId: Long): List<ExerciseSet>
+
+    @Query("SELECT * FROM exercise_sets WHERE sessionId = :sessionId ORDER BY exerciseId, setNumber")
+    fun getExerciseSetsForSessionFlow(sessionId: Long): Flow<List<ExerciseSet>>
+
+    @Query("SELECT * FROM exercise_sets WHERE sessionId = :sessionId AND exerciseId = :exerciseId ORDER BY setNumber")
+    suspend fun getExerciseSetsForExercise(sessionId: Long, exerciseId: String): List<ExerciseSet>
+
+    @Query("SELECT * FROM workout_sessions ORDER BY blockNumber DESC, weekNumber DESC, dayNumber DESC")
+    suspend fun getAllSessionsList(): List<WorkoutSession>
+
+    @Query("SELECT * FROM exercise_sets ORDER BY sessionId, exerciseId, setNumber")
+    suspend fun getAllExerciseSets(): List<ExerciseSet>
+
+    @Query("DELETE FROM workout_sessions")
+    suspend fun deleteAllSessions()
+
+    @Query("DELETE FROM exercise_sets")
+    suspend fun deleteAllExerciseSets()
+
+    @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
+    suspend fun deleteSession(sessionId: Long)
+
+    @Query("DELETE FROM exercise_sets WHERE sessionId = :sessionId")
+    suspend fun deleteExerciseSetsForSession(sessionId: Long)
+
+}

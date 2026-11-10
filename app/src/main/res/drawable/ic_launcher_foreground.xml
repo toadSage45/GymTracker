@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Left plate outer -->
+    <path
+        android:fillColor="#FF6D00"
+        android:pathData="M27,28 L33,28 Q37,28 37,32 L37,76 Q37,80 33,80 L27,80 Q23,80 23,76 L23,32 Q23,28 27,28 Z" />
+
+    <!-- Left plate inner (slightly lighter for depth) -->
+    <path
+        android:fillColor="#FF8F00"
+        android:pathData="M35,34 L38,34 Q40,34 40,36 L40,72 Q40,74 38,74 L35,74 Q33,74 33,72 L33,36 Q33,34 35,34 Z" />
+
+    <!-- Handle bar -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M40,50 L68,50 Q72,50 72,54 Q72,58 68,58 L40,58 Q36,58 36,54 Q36,50 40,50 Z" />
+
+    <!-- Handle grip texture lines -->
+    <path
+        android:fillColor="#FF8F00"
+        android:pathData="M48,50 L48,58 M52,50 L52,58 M56,50 L56,58 M60,50 L60,58"
+        android:strokeWidth="1"
+        android:strokeColor="#E06500" />
+
+    <!-- Right plate inner (slightly lighter for depth) -->
+    <path
+        android:fillColor="#FF8F00"
+        android:pathData="M70,34 L73,34 Q75,34 75,36 L75,72 Q75,74 73,74 L70,74 Q68,74 68,72 L68,36 Q68,34 70,34 Z" />
+
+    <!-- Right plate outer -->
+    <path
+        android:fillColor="#FF6D00"
+        android:pathData="M75,28 L81,28 Q85,28 85,32 L85,76 Q85,80 81,80 L75,80 Q71,80 71,76 L71,32 Q71,28 75,28 Z" />
+
+    <!-- Subtle highlight on left plate top edge -->
+    <path
+        android:fillColor="#FF9100"
+        android:pathData="M27,28 L33,28 Q37,28 37,32 L37,34 L23,34 L23,32 Q23,28 27,28 Z" />
+
+    <!-- Subtle highlight on right plate top edge -->
+    <path
+        android:fillColor="#FF9100"
+        android:pathData="M75,28 L81,28 Q85,28 85,32 L85,34 L71,34 L71,32 Q71,28 75,28 Z" />
+</vector>
