@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,26 +33,26 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(onSplashComplete: () -> Unit) {
-    val scale = remember { Animatable(0.3f) }
+    val scale = remember { Animatable(0.5f) }
     val alpha = remember { Animatable(0f) }
     val quoteAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        scale.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+        scale.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
     }
 
     LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(800))
-        delay(300)
-        quoteAlpha.animateTo(1f, animationSpec = tween(600))
-        delay(1500)
+        alpha.animateTo(1f, animationSpec = tween(350))
+        quoteAlpha.animateTo(1f, animationSpec = tween(300))
+        delay(400)
         onSplashComplete()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .clickable { onSplashComplete() },
         contentAlignment = Alignment.Center
     ) {
         Column(

@@ -88,7 +88,7 @@ fun GymTrackerNavHost(viewModel: WorkoutViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(bottom = padding.calculateBottomPadding())
                 .background(DarkBackground)
         ) {
             when (selectedTab) {

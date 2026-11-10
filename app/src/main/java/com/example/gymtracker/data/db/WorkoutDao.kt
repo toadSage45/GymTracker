@@ -58,4 +58,32 @@ interface WorkoutDao {
     @Query("DELETE FROM exercise_sets WHERE sessionId = :sessionId")
     suspend fun deleteExerciseSetsForSession(sessionId: Long)
 
+    @Query("""
+        SELECT * FROM workout_sessions 
+        WHERE dayNumber = :dayNumber 
+          AND ((blockNumber - 1) * 6 + weekNumber) < :absoluteWeek
+          AND id IN (
+              SELECT DISTINCT sessionId FROM exercise_sets WHERE reps IS NOT NULL
+          )
+        ORDER BY ((blockNumber - 1) * 6 + weekNumber) DESC, isCompleted DESC, id DESC 
+        LIMIT 6
+    """)
+    suspend fun getPreviousSessionsForDay(dayNumber: Int, absoluteWeek: Int): List<WorkoutSession>
+
+    @Query("SELECT * FROM exercise_sets WHERE sessionId IN (:sessionIds) ORDER BY sessionId, exerciseId, setNumber")
+    suspend fun getExerciseSetsForSessions(sessionIds: List<Long>): List<ExerciseSet>
+
+    @Query("""
+        DELETE FROM workout_sessions 
+        WHERE isCompleted = 0 
+          AND (notes IS NULL OR TRIM(notes) = '') 
+          AND id NOT IN (
+              SELECT DISTINCT sessionId FROM exercise_sets 
+              WHERE weight IS NOT NULL OR reps IS NOT NULL OR isCompleted = 1
+          )
+    """)
+    suspend fun cleanupEmptySessionsFast()
+
+    @Query("DELETE FROM exercise_sets WHERE sessionId NOT IN (SELECT id FROM workout_sessions)")
+    suspend fun cleanupOrphanExerciseSets()
 }

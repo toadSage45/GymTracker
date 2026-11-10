@@ -12,27 +12,32 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +47,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -60,8 +66,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.gymtracker.data.db.ExerciseSet
 import com.example.gymtracker.data.program.GymProgram
@@ -76,6 +84,7 @@ import com.example.gymtracker.ui.theme.Orange40
 import com.example.gymtracker.ui.theme.TextMuted
 import com.example.gymtracker.ui.theme.TextSecondary
 import com.example.gymtracker.ui.viewmodel.ExerciseUiState
+import com.example.gymtracker.ui.viewmodel.TimerUiState
 import com.example.gymtracker.ui.viewmodel.WorkoutViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,72 +117,95 @@ fun WorkoutScreen(viewModel: WorkoutViewModel) {
         )
     }
 
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .imePadding()
     ) {
-        item {
-            WeekDaySelector(
-                week = state.selectedWeek,
-                selectedDay = state.selectedDay,
-                dayStatuses = state.dayStatuses,
-                onWeekChange = { viewModel.selectWeek(it) },
-                onDaySelect = { viewModel.selectDay(it) }
-            )
-        }
-
-        item {
-            WorkoutHeader(
-                dayName = "Day ${programDay.dayNumber}: ${programDay.name}",
-                focus = programDay.focus,
-                week = state.selectedWeek,
-                isSubmitted = session.isCompleted,
-                date = session.date,
-                onNotesClick = { viewModel.toggleNotes() }
-            )
-        }
-
-        items(state.exercises) { exerciseState ->
-            ExerciseCard(
-                exerciseState = exerciseState,
-                onWeightChange = { set, weight -> viewModel.updateSet(set, weight, set.reps) },
-                onRepsChange = { set, reps -> viewModel.updateSet(set, set.weight, reps) },
-                onComplete = { viewModel.toggleExerciseComplete(exerciseState.programExercise.id) },
-                onInfoClick = { viewModel.showExerciseDetail(exerciseState.programExercise) }
-            )
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = { viewModel.toggleSubmitWorkout() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (session.isCompleted) GreenSuccess.copy(alpha = 0.3f)
-                    else if (state.allCompleted) GreenSuccess else Orange40
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    if (session.isCompleted) Icons.AutoMirrored.Filled.Undo else Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (session.isCompleted) "Undo Submit" else "Submit Workout",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "header_selector") {
+                WeekDaySelector(
+                    week = state.selectedWeek,
+                    selectedDay = state.selectedDay,
+                    suggestedNext = state.suggestedNext,
+                    dayStatuses = state.dayStatuses,
+                    onWeekChange = { viewModel.selectWeek(it) },
+                    onDaySelect = { viewModel.selectDay(it) },
+                    onJumpNext = { viewModel.jumpToNextWorkout() }
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            item(key = "header_workout") {
+                WorkoutHeader(
+                    dayName = "Day ${programDay.dayNumber}: ${programDay.name}",
+                    focus = programDay.focus,
+                    week = state.selectedWeek,
+                    isSubmitted = session.isCompleted,
+                    date = session.date,
+                    notes = session.notes,
+                    onNotesClick = { viewModel.toggleNotes() }
+                )
+            }
+
+            items(state.exercises, key = { it.programExercise.id }) { exerciseState ->
+                ExerciseCard(
+                    exerciseState = exerciseState,
+                    onWeightChange = { set, weight -> viewModel.updateSet(set, weight, set.reps) },
+                    onAllWeightChange = { exId, weight -> viewModel.updateAllSetsWeight(exId, weight) },
+                    onRepsChange = { set, reps -> viewModel.updateSet(set, set.weight, reps) },
+                    onToggleSetComplete = { setId -> viewModel.toggleSetComplete(setId) },
+                    onCompleteAll = { viewModel.toggleExerciseComplete(exerciseState.programExercise.id) },
+                    onInfoClick = { viewModel.showExerciseDetail(exerciseState.programExercise) },
+                    onStartTimer = { secs, label -> viewModel.startTimer(secs, label) }
+                )
+            }
+
+            item(key = "submit_section") {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { viewModel.toggleSubmitWorkout() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (session.isCompleted) GreenSuccess.copy(alpha = 0.3f)
+                        else if (state.allCompleted) GreenSuccess else Orange40
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        if (session.isCompleted) Icons.AutoMirrored.Filled.Undo else Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (session.isCompleted) "Undo Submit" else "Submit Workout",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(80.dp))
+            }
+        }
+
+        // Floating Timer Bar at the bottom
+        if (state.timerState.isRunning || state.timerState.remainingSeconds > 0) {
+            FloatingTimerBar(
+                timerState = state.timerState,
+                onAdd15 = { viewModel.addTimerSeconds(15) },
+                onTogglePause = { viewModel.toggleTimerPause() },
+                onDismiss = { viewModel.stopTimer() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
@@ -182,15 +214,18 @@ fun WorkoutScreen(viewModel: WorkoutViewModel) {
 fun WeekDaySelector(
     week: Int,
     selectedDay: Int,
+    suggestedNext: Pair<Int, Int>?,
     dayStatuses: Map<Int, DayStatus>,
     onWeekChange: (Int) -> Unit,
-    onDaySelect: (Int) -> Unit
+    onDaySelect: (Int) -> Unit,
+    onJumpNext: () -> Unit
 ) {
     val cycleWeek = GymProgram.cycleWeekOf(week)
     val block = GymProgram.blockOf(week)
     var showWeekPicker by remember { mutableStateOf(false) }
 
     if (showWeekPicker) {
+        val maxWeekToShow = maxOf(12, ((week - 1) / 6 + 2) * 6)
         AlertDialog(
             onDismissRequest = { showWeekPicker = false },
             title = {
@@ -201,14 +236,17 @@ fun WeekDaySelector(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
-                        "Explicitly select the program week:",
+                        "Explicitly select your program week:",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    val chunkedWeeks = (1..12).chunked(4)
+                    val chunkedWeeks = (1..maxWeekToShow).chunked(4)
                     chunkedWeeks.forEach { rowWeeks ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -216,11 +254,12 @@ fun WeekDaySelector(
                         ) {
                             rowWeeks.forEach { w ->
                                 val isCurrent = w == week
+                                val isDeload = GymProgram.cycleWeekOf(w) == GymProgram.WEEKS_PER_BLOCK
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isCurrent) Orange40 else DarkSurfaceVariant)
+                                        .background(if (isCurrent) Orange40 else if (isDeload) Amber.copy(alpha = 0.15f) else DarkSurfaceVariant)
                                         .clickable {
                                             onWeekChange(w)
                                             showWeekPicker = false
@@ -228,12 +267,21 @@ fun WeekDaySelector(
                                         .padding(vertical = 12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "W$w",
-                                        color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "W$w",
+                                            color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (isDeload) {
+                                            Text(
+                                                text = "DL",
+                                                color = if (isCurrent) Color.White else Amber,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -301,6 +349,28 @@ fun WeekDaySelector(
                         Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = "Next week",
                         tint = Orange40
+                    )
+                }
+            }
+
+            // Quick Jump to Next Workout chip if not currently on it
+            if (suggestedNext != null && (suggestedNext.first != week || suggestedNext.second != selectedDay)) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Orange40.copy(alpha = 0.12f))
+                        .clickable(onClick = onJumpNext)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Next In Queue: Week ${suggestedNext.first} · Day ${suggestedNext.second} →",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Orange40,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -398,6 +468,7 @@ fun WorkoutHeader(
     week: Int,
     isSubmitted: Boolean,
     date: String,
+    notes: String = "",
     onNotesClick: () -> Unit
 ) {
     Card(
@@ -428,7 +499,7 @@ fun WorkoutHeader(
                     Icon(
                         Icons.AutoMirrored.Filled.NoteAdd,
                         contentDescription = "Notes",
-                        tint = TextSecondary
+                        tint = if (notes.isNotBlank()) Orange40 else TextSecondary
                     )
                 }
             }
@@ -438,6 +509,27 @@ fun WorkoutHeader(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ChipLabel("Week $week")
                 ChipLabel(if (isSubmitted) "Submitted $date" else "Not submitted")
+            }
+
+            if (notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSurfaceVariant)
+                        .clickable(onClick = onNotesClick)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Note: $notes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Orange40,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -463,9 +555,12 @@ fun ChipLabel(text: String) {
 fun ExerciseCard(
     exerciseState: ExerciseUiState,
     onWeightChange: (ExerciseSet, Float?) -> Unit,
+    onAllWeightChange: (String, Float?) -> Unit,
     onRepsChange: (ExerciseSet, Int?) -> Unit,
-    onComplete: () -> Unit,
-    onInfoClick: () -> Unit
+    onToggleSetComplete: (Long) -> Unit,
+    onCompleteAll: () -> Unit,
+    onInfoClick: () -> Unit,
+    onStartTimer: (Int, String) -> Unit
 ) {
     val exercise = exerciseState.programExercise
     val borderColor by animateColorAsState(
@@ -513,21 +608,69 @@ fun ExerciseCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Reps: ${exercise.repRange}",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMuted
                 )
-                Text(
-                    text = "Rest: ${exercise.restTime}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            val secs = when {
+                                exercise.restTime.contains("3 min") -> 180
+                                exercise.restTime.contains("2-3 min") -> 150
+                                exercise.restTime.contains("2 min") -> 120
+                                exercise.restTime.contains("90 sec") -> 90
+                                exercise.restTime.contains("60 sec") -> 60
+                                else -> 90
+                            }
+                            onStartTimer(secs, "${exercise.name} Rest")
+                        }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Rest: ${exercise.restTime}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Timer,
+                        contentDescription = "Start rest timer",
+                        tint = Orange40,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Double Progression Target Hit Badge
+            if (exerciseState.doubleProgressionEligible) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Amber.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🚀", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Target Hit! Increase weight next: ${exerciseState.doubleProgressionJump ?: "+2.5kg"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Amber,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             if (exerciseState.previousSets.isNotEmpty()) {
                 PreviousWeekRow(exerciseState.previousSets, exerciseState.previousWeek)
@@ -541,11 +684,20 @@ fun ExerciseCard(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            if (!exercise.isTimedHold) {
+            if (exercise.isTimedHold) {
+                TimedHoldRow(
+                    sets = exerciseState.currentSets,
+                    exerciseName = exercise.name,
+                    onToggleSetComplete = onToggleSetComplete,
+                    onStartHoldTimer = onStartTimer
+                )
+            } else {
                 CurrentWeekRow(
                     sets = exerciseState.currentSets,
                     onWeightChange = onWeightChange,
+                    onAllWeightChange = { w -> onAllWeightChange(exercise.id, w) },
                     onRepsChange = onRepsChange,
+                    onToggleSetComplete = onToggleSetComplete,
                     isCompleted = exerciseState.isCompleted
                 )
             }
@@ -553,7 +705,7 @@ fun ExerciseCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = onComplete,
+                onClick = onCompleteAll,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (exerciseState.isCompleted) GreenSuccess.copy(alpha = 0.2f)
@@ -569,7 +721,7 @@ fun ExerciseCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (exerciseState.isCompleted) "Undo" else "Mark Complete",
+                    text = if (exerciseState.isCompleted) "Undo All" else "Mark All Complete",
                     color = if (exerciseState.isCompleted) GreenSuccess else TextSecondary,
                     style = MaterialTheme.typography.labelLarge
                 )
@@ -579,14 +731,82 @@ fun ExerciseCard(
 }
 
 @Composable
+fun TimedHoldRow(
+    sets: List<ExerciseSet>,
+    exerciseName: String,
+    onToggleSetComplete: (Long) -> Unit,
+    onStartHoldTimer: (Int, String) -> Unit
+) {
+    Column {
+        Text(
+            text = "Hold Sets",
+            style = MaterialTheme.typography.labelSmall,
+            color = Orange40
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            sets.forEach { set ->
+                val isDone = set.isCompleted
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isDone) GreenSuccess.copy(alpha = 0.2f) else DarkSurfaceVariant)
+                        .border(
+                            1.dp,
+                            if (isDone) GreenSuccess else TextMuted.copy(alpha = 0.3f),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable { onToggleSetComplete(set.id) }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "S${set.setNumber} · 30s",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isDone) GreenSuccess else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { onStartHoldTimer(30, "$exerciseName S${set.setNumber}") },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Timer,
+                            contentDescription = "Start hold timer",
+                            tint = if (isDone) GreenSuccess else Orange40,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Complete",
+                        tint = if (isDone) GreenSuccess else TextMuted.copy(alpha = 0.4f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun PreviousWeekRow(sets: List<ExerciseSet>, fromWeek: Int? = null) {
-    val weight = sets.firstOrNull()?.weight
+    val distinctWeights = sets.mapNotNull { it.weight }.distinct()
     val repsStr = sets.joinToString("  ") { "${it.reps ?: "-"}" }
     val weightStr = when {
-        weight == null -> "—"
-        weight < 0 -> "${weight}kg"
-        weight == 0f -> "BW"
-        else -> "${formatWeight(weight)}kg"
+        distinctWeights.isEmpty() -> "—"
+        distinctWeights.size == 1 -> {
+            val w = distinctWeights.first()
+            if (w < 0) "${w}kg" else if (w == 0f) "BW" else "${formatWeight(w)}kg"
+        }
+        else -> distinctWeights.joinToString("/") { formatWeight(it) } + "kg"
     }
 
     Column {
@@ -629,10 +849,13 @@ fun PreviousWeekRow(sets: List<ExerciseSet>, fromWeek: Int? = null) {
 fun CurrentWeekRow(
     sets: List<ExerciseSet>,
     onWeightChange: (ExerciseSet, Float?) -> Unit,
+    onAllWeightChange: ((Float?) -> Unit)? = null,
     onRepsChange: (ExerciseSet, Int?) -> Unit,
+    onToggleSetComplete: (Long) -> Unit = {},
     isCompleted: Boolean
 ) {
-    val weightStr = sets.firstOrNull()?.weight?.let { formatWeight(it) } ?: ""
+    val exerciseKey = sets.firstOrNull()?.let { "${it.sessionId}_${it.exerciseId}" } ?: ""
+    val initialWeight = sets.firstOrNull()?.weight?.let { formatWeight(it) } ?: ""
 
     Column {
         Text(
@@ -649,26 +872,36 @@ fun CurrentWeekRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            var weightInput by remember(weightStr) { mutableStateOf(weightStr) }
+            // Key by exercise identity so typing decimal or negative does not reset mid-typing
+            var weightInput by remember(exerciseKey) { mutableStateOf(initialWeight) }
+
             OutlinedTextField(
                 value = weightInput,
                 onValueChange = { value ->
-                    weightInput = value
-                    val parsed = value.toFloatOrNull()
-                    if (sets.isNotEmpty()) {
-                        for (set in sets) {
-                            onWeightChange(set, parsed)
+                    // Allow negative sign, decimals, numbers
+                    if (value.isEmpty() || value == "-" || value.matches(Regex("^-?\\d*\\.?\\d*$"))) {
+                        weightInput = value
+                        val parsed = value.toFloatOrNull()
+                        if (parsed != null || value.isEmpty()) {
+                            if (onAllWeightChange != null) {
+                                onAllWeightChange(parsed)
+                            } else {
+                                sets.forEach { onWeightChange(it, parsed) }
+                            }
                         }
                     }
                 },
                 label = { Text("kg", style = MaterialTheme.typography.labelSmall) },
-                modifier = Modifier.width(72.dp),
+                modifier = Modifier.width(76.dp),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.SemiBold
                 ),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
                 colors = inputFieldColors(),
                 enabled = !isCompleted,
                 shape = RoundedCornerShape(10.dp)
@@ -676,31 +909,77 @@ fun CurrentWeekRow(
 
             Text("→", color = TextMuted, style = MaterialTheme.typography.bodySmall)
 
-            sets.forEach { set ->
-                var repsInput by remember(set.reps) {
+            sets.forEachIndexed { index, set ->
+                var repsInput by remember(set.id) {
                     mutableStateOf(set.reps?.toString() ?: "")
                 }
-                OutlinedTextField(
-                    value = repsInput,
-                    onValueChange = { value ->
-                        repsInput = value
-                        onRepsChange(set, value.toIntOrNull())
-                    },
-                    label = { Text("S${set.setNumber}", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.width(56.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        textAlign = TextAlign.Center
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = inputFieldColors(),
-                    enabled = !isCompleted,
-                    shape = RoundedCornerShape(10.dp)
-                )
+                val isSetDone = set.isCompleted
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Per-set completion checkmark
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(if (isSetDone) GreenSuccess else DarkSurfaceVariant)
+                            .clickable(enabled = !isCompleted) {
+                                onToggleSetComplete(set.id)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Complete set ${set.setNumber}",
+                            tint = if (isSetDone) Color.White else TextMuted.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = repsInput,
+                        onValueChange = { value ->
+                            if (value.isEmpty() || value.matches(Regex("^\\d*$"))) {
+                                repsInput = value
+                                onRepsChange(set, value.toIntOrNull())
+                            }
+                        },
+                        label = { Text("S${set.setNumber}", style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.width(58.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = if (index == sets.lastIndex) ImeAction.Done else ImeAction.Next
+                        ),
+                        colors = if (isSetDone) completedSetFieldColors() else inputFieldColors(),
+                        enabled = !isCompleted,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
             }
         }
     }
 }
+
+@Composable
+fun completedSetFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = GreenSuccess,
+    unfocusedBorderColor = GreenSuccess.copy(alpha = 0.6f),
+    focusedLabelColor = GreenSuccess,
+    unfocusedLabelColor = GreenSuccess,
+    cursorColor = GreenSuccess,
+    focusedTextColor = GreenSuccess,
+    unfocusedTextColor = GreenSuccess,
+    disabledTextColor = GreenSuccess,
+    disabledBorderColor = GreenSuccess.copy(alpha = 0.4f),
+    disabledLabelColor = GreenSuccess.copy(alpha = 0.7f)
+)
 
 @Composable
 fun inputFieldColors() = OutlinedTextFieldDefaults.colors(
@@ -715,6 +994,98 @@ fun inputFieldColors() = OutlinedTextFieldDefaults.colors(
     disabledBorderColor = TextMuted.copy(alpha = 0.15f),
     disabledLabelColor = TextMuted.copy(alpha = 0.5f)
 )
+
+@Composable
+fun FloatingTimerBar(
+    timerState: TimerUiState,
+    onAdd15: () -> Unit,
+    onTogglePause: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val mins = timerState.remainingSeconds / 60
+    val secs = timerState.remainingSeconds % 60
+    val timeFormatted = String.format("%02d:%02d", mins, secs)
+    val progress = if (timerState.totalSeconds > 0) {
+        timerState.remainingSeconds.toFloat() / timerState.totalSeconds
+    } else 0f
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = CardDark),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = Orange40,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = timerState.label.ifBlank { "Rest Timer" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = timeFormatted,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (timerState.remainingSeconds <= 5) Amber else Orange40,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    TextButton(onClick = onAdd15) {
+                        Text("+15s", color = Orange40, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(onClick = onTogglePause) {
+                        Icon(
+                            if (timerState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            contentDescription = if (timerState.isPaused) "Resume" else "Pause",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Stop timer",
+                            tint = TextMuted
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = if (timerState.remainingSeconds <= 5) Amber else Orange40,
+                trackColor = DarkSurfaceVariant
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

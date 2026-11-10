@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
@@ -97,6 +99,25 @@ fun BackupScreen(viewModel: WorkoutViewModel) {
         pendingJson = null
     }
 
+    val openDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.bufferedReader().use { it.readText() }
+                }
+                if (json != null) {
+                    viewModel.importBackupData(json)
+                }
+            } catch (e: Exception) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Error reading file: ${e.message}")
+                }
+            }
+        }
+    }
+
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbarHostState.showSnackbar(it)
@@ -113,11 +134,12 @@ fun BackupScreen(viewModel: WorkoutViewModel) {
             TopAppBar(
                 title = {
                     Text(
-                        "Backup & Export",
+                        "Backup & Restore",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 },
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
@@ -208,6 +230,84 @@ fun BackupScreen(viewModel: WorkoutViewModel) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (state.isExporting) "Preparing..." else "Export Backup",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardDark),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(GreenSuccess.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                tint = GreenSuccess,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Restore Workout Data",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Import a previously exported JSON backup file to restore all your sessions and logs. Existing data will be safely replaced inside an atomic transaction.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = {
+                                openDocLauncher.launch(arrayOf("application/json"))
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenSuccess),
+                            shape = RoundedCornerShape(14.dp),
+                            enabled = !state.isImporting
+                        ) {
+                            if (state.isImporting) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.CloudUpload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (state.isImporting) "Restoring..." else "Restore From Backup",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )

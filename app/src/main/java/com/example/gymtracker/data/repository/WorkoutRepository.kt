@@ -2,6 +2,7 @@ package com.example.gymtracker.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.room.withTransaction
 import com.example.gymtracker.data.db.ExerciseSet
 import com.example.gymtracker.data.db.GymDatabase
 import com.example.gymtracker.data.db.WorkoutSession
@@ -28,6 +29,8 @@ class WorkoutRepository(private val context: Context) {
         context.getSharedPreferences("gym_tracker_prefs", Context.MODE_PRIVATE)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
+    fun hasSavedSelection(): Boolean = prefs.contains("selected_week") && prefs.contains("selected_day")
+
     fun getSelectedWeek(): Int = prefs.getInt("selected_week", 1)
 
     fun saveSelectedWeek(week: Int) {
@@ -50,6 +53,17 @@ class WorkoutRepository(private val context: Context) {
             ?: return Pair(1, 1)
         val week = GymProgram.absoluteWeekOf(last)
         return if (last.dayNumber >= 6) Pair(week + 1, 1) else Pair(week, last.dayNumber + 1)
+    }
+
+    suspend fun getInitialWorkout(): Pair<Int, Int> {
+        return if (hasSavedSelection()) {
+            Pair(getSelectedWeek(), getSelectedDay())
+        } else {
+            val suggested = suggestNextWorkout()
+            saveSelectedWeek(suggested.first)
+            saveSelectedDay(suggested.second)
+            suggested
+        }
     }
 
     suspend fun getOrCreateSession(absoluteWeek: Int, dayNumber: Int): WorkoutSession? {
@@ -108,11 +122,11 @@ class WorkoutRepository(private val context: Context) {
      */
     suspend fun getPreviousPerformance(absoluteWeek: Int, dayNumber: Int): Map<String, PreviousPerformance> {
         val programDay = GymProgram.getDayByNumber(dayNumber) ?: return emptyMap()
-        val earlier = dao.getAllSessionsList()
-            .filter { it.dayNumber == dayNumber && GymProgram.absoluteWeekOf(it) < absoluteWeek }
-            .sortedWith(compareByDescending<WorkoutSession> { GymProgram.absoluteWeekOf(it) }
-                .thenByDescending { it.isCompleted })
-        val setsBySession = dao.getAllExerciseSets().groupBy { it.sessionId }
+        val earlier = dao.getPreviousSessionsForDay(dayNumber, absoluteWeek)
+        if (earlier.isEmpty()) return emptyMap()
+
+        val sets = dao.getExerciseSetsForSessions(earlier.map { it.id })
+        val setsBySession = sets.groupBy { it.sessionId }
 
         val result = mutableMapOf<String, PreviousPerformance>()
         for (exercise in programDay.exercises) {
@@ -152,7 +166,8 @@ class WorkoutRepository(private val context: Context) {
     }
 
     suspend fun cleanupEmptySessions() {
-        for (session in dao.getAllSessionsList()) deleteSessionIfEmpty(session.id)
+        dao.cleanupEmptySessionsFast()
+        dao.cleanupOrphanExerciseSets()
     }
 
     suspend fun updateExerciseSet(set: ExerciseSet) = dao.updateExerciseSet(set)
@@ -189,26 +204,37 @@ class WorkoutRepository(private val context: Context) {
     suspend fun importData(json: String) {
         val type = object : TypeToken<Map<String, Any>>() {}.type
         val data: Map<String, Any> = Gson().fromJson(json, type)
+            ?: throw IllegalArgumentException("Invalid backup JSON format")
 
-        dao.deleteAllExerciseSets()
-        dao.deleteAllSessions()
+        if (!data.containsKey("sessions") && !data.containsKey("exerciseSets")) {
+            throw IllegalArgumentException("Backup JSON is missing sessions or exerciseSets data")
+        }
 
         val sessionsJson = Gson().toJson(data["sessions"])
         val sessionsType = object : TypeToken<List<WorkoutSession>>() {}.type
-        val sessions: List<WorkoutSession> = Gson().fromJson(sessionsJson, sessionsType)
-        for (session in sessions) {
-            dao.insertSession(session)
-        }
+        val sessions: List<WorkoutSession> = Gson().fromJson(sessionsJson, sessionsType) ?: emptyList()
 
         val setsJson = Gson().toJson(data["exerciseSets"])
         val setsType = object : TypeToken<List<ExerciseSet>>() {}.type
-        val sets: List<ExerciseSet> = Gson().fromJson(setsJson, setsType)
-        dao.insertExerciseSets(sets)
+        val sets: List<ExerciseSet> = Gson().fromJson(setsJson, setsType) ?: emptyList()
+
+        db.withTransaction {
+            dao.deleteAllExerciseSets()
+            dao.deleteAllSessions()
+            for (session in sessions) {
+                dao.insertSession(session)
+            }
+            if (sets.isNotEmpty()) {
+                dao.insertExerciseSets(sets)
+            }
+        }
     }
 
     suspend fun clearAllData() {
-        dao.deleteAllExerciseSets()
-        dao.deleteAllSessions()
+        db.withTransaction {
+            dao.deleteAllExerciseSets()
+            dao.deleteAllSessions()
+        }
         prefs.edit().remove("selected_week").remove("selected_day").apply()
     }
 }
